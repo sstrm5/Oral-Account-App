@@ -1,3 +1,7 @@
-.py
-.__py
-.db
+__pycache__/
+.venv/
+.vscode/
+.venv/
+*.pyc
+.env
+*.db
