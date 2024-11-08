@@ -27,8 +27,9 @@ def random_problem():
     }
 
     # Выбираем на рандом первое, второе числа и операцию между ними
-    num_1 = random.randint(1, 9000)
     operation = random.choice(list(operators.keys()))
+    num_1 = random.randint(
+        1, 9000) if operation != "*" else random.randint(2, 343)
     if operation == "/":
         num_2 = random.randint(2, 1000)
         if num_1 % num_2 != 0:
@@ -39,34 +40,13 @@ def random_problem():
 
     elif operation == "*":
         num_2 = random.randint(2, 100)
+        num_1, num_2 = random.sample([num_1, num_2], 2)
 
     else:
         num_2 = random.randint(1, 9000)
 
     # Находим ответ на задачку
-    answer = float(round(operators.get(operation)(num_1, num_2), 3))
+    res = round(operators.get(operation)(num_1, num_2), 3)
+    answer = str(int(res) if res == int(res) else res)
     # print(f'What is {num_1} {operation} {num_2}')
     return num_1, operation, num_2, answer
-
-# Проверка правильности ввденого ответа пользователем
-
-
-def ask_question():
-    answer = random_problem()
-    try:
-        guess = float(input('Enter you answer: '))
-    except ValueError:
-        guess = errorHandler(answer)
-    return guess == answer
-
-# Запускает игру, считает очки, оканчивает игру
-
-
-def game():
-    score = 0
-    while True:
-        if ask_question():
-            score += 1
-        else:
-            break
-    # print(f'======== Game Over ========\nYou score is {score}\nKeep going!')
