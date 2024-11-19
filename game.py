@@ -29,24 +29,30 @@ def random_problem():
     # Выбираем на рандом первое, второе числа и операцию между ними
     operation = random.choice(list(operators.keys()))
     num_1 = random.randint(
-        1, 9000) if operation != "*" else random.randint(2, 343)
+        1, 400) if operation != "*" else random.randint(2, 20)
     if operation == "/":
-        num_2 = random.randint(2, 1000)
+        num_1 = random.randint(1, 1000)
+        num_2 = random.randint(2, 20)
         if num_1 % num_2 != 0:
-            while num_2 % 5 != 0:
-                num_2 += 1
             while num_1 % num_2 != 0:
                 num_1 += 1
 
     elif operation == "*":
-        num_2 = random.randint(2, 100)
+        num_2 = random.randint(2, 20)
         num_1, num_2 = random.sample([num_1, num_2], 2)
 
     else:
-        num_2 = random.randint(1, 9000)
+        num_2 = random.randint(1, 600)
 
     # Находим ответ на задачку
     res = round(operators.get(operation)(num_1, num_2), 3)
     answer = str(int(res) if res == int(res) else res)
     # print(f'What is {num_1} {operation} {num_2}')
     return num_1, operation, num_2, answer
+
+
+def random_color():
+    red = random.randint(50, 230)
+    green = random.randint(50, 100)
+    blue = random.randint(50, 230)
+    return f'rgb({red}, {green}, {blue})'

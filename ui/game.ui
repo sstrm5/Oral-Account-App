@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>660</width>
+    <width>664</width>
     <height>660</height>
    </rect>
   </property>
@@ -17,13 +17,14 @@
    <property name="geometry">
     <rect>
      <x>40</x>
-     <y>230</y>
+     <y>310</y>
      <width>571</width>
      <height>51</height>
     </rect>
    </property>
    <property name="font">
     <font>
+     <family>Noto Sans Lydian</family>
      <pointsize>33</pointsize>
      <weight>75</weight>
      <bold>true</bold>
@@ -53,7 +54,7 @@
    <property name="geometry">
     <rect>
      <x>250</x>
-     <y>320</y>
+     <y>390</y>
      <width>160</width>
      <height>80</height>
     </rect>
@@ -75,17 +76,42 @@
    <property name="geometry">
     <rect>
      <x>50</x>
-     <y>110</y>
-     <width>538</width>
-     <height>111</height>
+     <y>102</y>
+     <width>551</width>
+     <height>199</height>
     </rect>
    </property>
+   <property name="font">
+    <font>
+     <family>Noto Sans Lydian</family>
+    </font>
+   </property>
    <layout class="QVBoxLayout" name="verticalLayout_2">
+    <item>
+     <widget class="QLabel" name="time_left_label_2">
+      <property name="font">
+       <font>
+        <family>Noto Sans Lydian</family>
+        <pointsize>14</pointsize>
+       </font>
+      </property>
+      <property name="layoutDirection">
+       <enum>Qt::LeftToRight</enum>
+      </property>
+      <property name="text">
+       <string>Времени осталось:</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
     <item>
      <widget class="QLabel" name="time_left_label">
       <property name="font">
        <font>
-        <pointsize>14</pointsize>
+        <family>Noto Sans Lydian</family>
+        <pointsize>26</pointsize>
        </font>
       </property>
       <property name="layoutDirection">
@@ -103,6 +129,7 @@
      <widget class="QLabel" name="label">
       <property name="font">
        <font>
+        <family>Noto Sans Lydian</family>
         <pointsize>24</pointsize>
         <weight>50</weight>
         <bold>false</bold>

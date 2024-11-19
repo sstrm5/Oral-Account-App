@@ -1,7 +1,7 @@
 import hashlib
 import os
 import sys
-from threading import Timer
+from PyQt6.QtCore import QTimer, Qt
 import time
 from PyQt6 import uic
 from PyQt6.QtGui import QCloseEvent
@@ -61,12 +61,13 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setGeometry(450, 250, 660, 660)
-        # self.setFixedSize(400, 450)
-        # self.setWindowIcon(QIcon("favicon.png"))
+        self.setFixedSize(660, 660)
         self.user = None
         self.alert = None
         self.end_game_alert = None
         self.timer = None
+        self.game_frame = None
+        self.time_limit = 20
         self.total_score = 0
         self.db_connection = sqlite3.connect('db.db')
         self.cursor = self.db_connection.cursor()
@@ -105,17 +106,51 @@ class MainWindow(QMainWindow):
 
         if self.end_game_alert and self.sender() == self.end_game_alert.ok_btn:
             self.end_game_alert.hide()
+        if self.game_frame and self.sender() == self.game_frame.exit_btn:
+            self.timer.stop()
         self.show()
 
-    def generate_problem(self):
-        time_limit = 20
+    def timing(self):
+        self.show_time -= 0.1
+        self.show_time = round(self.show_time, 1)
         self.game_frame.time_left_label.setText(
-            f"Ограничение по времени:\n{time_limit} сек.")
-        self.timer = Timer(time_limit, self.end_game, ['problem_timer'])
-        self.timer.start()
+            f"{self.show_time} сек.")
+        match self.show_time:
+            case 10:
+                self.game_frame.time_left_label.setStyleSheet(
+                    "QLabel { color : rgb(50, 0, 0); }")
+            case 7:
+                self.game_frame.time_left_label.setStyleSheet(
+                    "QLabel { color : rgb(100, 0, 0); }")
+            case 5:
+                self.game_frame.time_left_label.setStyleSheet(
+                    "QLabel { color : rgb(200, 0, 0); }")
+            case 3.5:
+                self.game_frame.time_left_label.setStyleSheet(
+                    "QLabel { color : rgb(235, 0, 0); }")
+            case 2:
+                self.game_frame.time_left_label.setStyleSheet(
+                    "QLabel { color : rgb(255, 0, 0); }")
+        if self.show_time <= 0:
+            self.end_game(who_called='timer')
+
+    def generate_problem(self):
+        self.show_time = self.time_limit
+        self.game_frame.time_left_label.setText(
+            f"{self.show_time} сек.")
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.timing)
+        self.timer.start(100)
         num1, operator, num2, self.answer = game.random_problem()
         problem = f"{num1} {operator} {num2}"
+        self.game_frame.time_left_label.setStyleSheet(
+            "QLabel { color : rgb(50, 0, 0)}")
         self.game_frame.problem_label.setText(problem)
+        random_color = f"color: {game.random_color()}"
+        self.game_frame.problem_label.setStyleSheet(
+            f"QLabel {{ {random_color} }}"
+        )
+        self.game_frame.user_answer_edit.setFocus()
 
     def start_game(self):
         if not self.user:
@@ -134,27 +169,34 @@ class MainWindow(QMainWindow):
 
         self.game_frame.exit_btn.clicked.connect(self.start_hello_frame)
         self.game_frame.check_btn.clicked.connect(self.check_answer)
+        self.game_frame.user_answer_edit.returnPressed.connect(
+            self.check_answer)
 
     def check_answer(self):
         user_answer = self.game_frame.user_answer_edit.text()
         if user_answer.strip() == self.answer:
             self.total_score += 1
             self.game_frame.score_QLCD.display(self.total_score)
+            self.game_frame.score_QLCD.setStyleSheet(
+                "QLCDNumber { color : rgb(0, 200, 0); }"
+            )
             self.game_frame.user_answer_edit.clear()
             self.generate_problem()
         else:
             self.total_score = self.game_frame.score_QLCD.intValue()
             self.end_game('check_answer')
 
-    def end_game(self, who_called):
+    def end_game(self, who_called='timer'):
+        self.timer.stop()
+        self.show_time = 0
+        if who_called == 'check_answer':
+            text = f"""Ошибка! Правильный ответ: {
+                self.answer}. Количество набранных очков {self.total_score}."""
+        else:
+            text = f"""Время вышло! Количество набранных очков {
+                self.total_score}."""
         self.end_game_alert = EndGameAlertDialog(self)
         self.end_game_alert.setWindowTitle("Игра окончена")
-        if who_called == 'check_answer':
-            self.timer.cancel()
-            text = f"""Ошибка! Правильный ответ: {
-                self.answer}. Вы набрали {self.total_score} очков."""
-        else:
-            text = f"""Время вышло! Вы набрали {self.total_score} очков."""
         self.end_game_alert.label.setText(text)
         self.end_game_alert.ok_btn.clicked.connect(
             self.start_hello_frame)
@@ -185,7 +227,6 @@ class MainWindow(QMainWindow):
         user = self.cursor.fetchone()
         if user:
             password_hash = user[2]
-            print(password_hash)
             salt_str = password_hash[:32]
             salt_b = bytes.fromhex(salt_str)
 
@@ -195,9 +236,6 @@ class MainWindow(QMainWindow):
                 password.encode('utf-8'),
                 salt_b,
                 100000,
-            )
-            print(
-                f"Соль: {salt_str}, key: {key}, new_key: {new_key.hex()}"
             )
             if new_key.hex() == key:
                 self.user = user
@@ -255,10 +293,25 @@ class MainWindow(QMainWindow):
         self.user = None
         self.start_hello_frame()
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            self.start_hello_frame()
+        elif event.key() == Qt.Key.Key_Enter:
+            if self.sender() in (self.game_frame.check_btn, self.game_frame.user_answer_edit):
+                self.check_answer()
+            elif self.sender() == self.end_game_alert.ok_btn:
+                self.start_hello_frame()
+            elif self.sender() == self.login_frame.login_btn:
+                self.login_user()
+            elif self.sender() == self.signin_frame.signin_btn:
+                self.signin_user()
+            elif self.sender() == self.alert.login_btn:
+                self.login_user()
+
     def closeEvent(self, a0: QCloseEvent | None) -> None:
         self.db_connection.close()
         if self.timer:
-            self.timer.cancel()
+            self.timer.stop()
 
 
 if __name__ == '__main__':
