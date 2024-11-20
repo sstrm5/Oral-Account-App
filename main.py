@@ -5,10 +5,13 @@ from PyQt6.QtCore import QTimer, Qt
 import time
 from PyQt6 import uic
 from PyQt6.QtGui import QCloseEvent
-from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QDialog, QDialogButtonBox
+from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QDialog, QDialogButtonBox, QHeaderView, QTableWidgetItem, QButtonGroup
 from PyQt6.QtCore import QCoreApplication
 import sqlite3
-from sql_commands import CREATE_TABLE_USERS, CREATE_TABLE_USERS_SCORES, CREATE_USER, GET_USER
+from sql_commands import (
+    CREATE_TABLE_USERS, CREATE_TABLE_USERS_SCORES, CREATE_USER, GET_USER, UPDATE_SCORES,
+    GET_SCORES, GET_SCORES_SORTED_BY_TIME, GET_SCORES_SORTED_BY_USER,
+    GET_SCORES_SORTED_BY_SCORE, GET_USERS)
 import game
 
 
@@ -51,6 +54,12 @@ class EndGameAlertDialog(QDialog):
         ex.start_hello_frame()
 
 
+class TableWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        uic.loadUi("ui/table.ui", self)
+
+
 class StartGameWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -68,6 +77,7 @@ class MainWindow(QMainWindow):
         self.timer = None
         self.game_frame = None
         self.time_limit = 20
+        self.time_spent = 0
         self.total_score = 0
         self.db_connection = sqlite3.connect('db.db')
         self.cursor = self.db_connection.cursor()
@@ -103,6 +113,8 @@ class MainWindow(QMainWindow):
             self.start_signin)
         self.hello_frame.user_quit_btn.clicked.connect(
             self.user_quit)
+        self.hello_frame.btn_table.clicked.connect(
+            self.show_table)
 
         if self.end_game_alert and self.sender() == self.end_game_alert.ok_btn:
             self.end_game_alert.hide()
@@ -173,6 +185,7 @@ class MainWindow(QMainWindow):
             self.check_answer)
 
     def check_answer(self):
+        self.time_spent += self.time_limit - self.show_time
         user_answer = self.game_frame.user_answer_edit.text()
         if user_answer.strip() == self.answer:
             self.total_score += 1
@@ -188,18 +201,27 @@ class MainWindow(QMainWindow):
 
     def end_game(self, who_called='timer'):
         self.timer.stop()
+        if self.time_spent == 0:
+            self.time_spent = self.time_limit - self.show_time
         self.show_time = 0
+
         if who_called == 'check_answer':
             text = f"""Ошибка! Правильный ответ: {
                 self.answer}. Количество набранных очков {self.total_score}."""
         else:
             text = f"""Время вышло! Количество набранных очков {
                 self.total_score}."""
+        self.cursor.execute(
+            UPDATE_SCORES.format(user_name=self.user[1], score=self.total_score, time=round(self.time_spent, 2)))
+        self.db_connection.commit()
+        self.time_spent = 0
         self.end_game_alert = EndGameAlertDialog(self)
         self.end_game_alert.setWindowTitle("Игра окончена")
         self.end_game_alert.label.setText(text)
         self.end_game_alert.ok_btn.clicked.connect(
             self.start_hello_frame)
+        self.end_game_alert.open_table_btn.clicked.connect(
+            self.show_table)
         self.end_game_alert.exec()
 
     def start_login(self):
@@ -212,6 +234,7 @@ class MainWindow(QMainWindow):
             self.start_hello_frame)
         self.login_frame.login_btn.clicked.connect(
             self.login_user)
+        self.login_frame.login_edit.setFocus()
 
         if self.alert and self.sender() == self.alert.login_btn:
             self.alert.hide()
@@ -254,6 +277,7 @@ class MainWindow(QMainWindow):
             self.start_hello_frame)
         self.signin_frame.signin_btn.clicked.connect(
             self.signin_user)
+        self.signin_frame.login_edit.setFocus()
 
         if self.alert and self.sender() == self.alert.signin_btn:
             self.alert.hide()
@@ -289,6 +313,53 @@ class MainWindow(QMainWindow):
         self.dialog.exec()
         self.signin_frame.info_label.setText(f"Привет, {login}!")
 
+    def show_table(self):
+        if self.end_game_alert and self.sender() == self.end_game_alert.open_table_btn:
+            self.end_game_alert.hide()
+        self.table_frame = TableWidget(self)
+        self.table_frame.back_btn.clicked.connect(self.start_hello_frame)
+        self.table_frame.sort_btn.clicked.connect(self.sort_table)
+        self.setWindowTitle("Таблица рекордов")
+        self.setCentralWidget(self.table_frame)
+
+        self.cursor.execute(GET_SCORES)
+        scores = self.cursor.fetchall()
+
+        headers = ["Имя пользователя", "Счет", "Время"]
+        self.table_frame.table.setColumnCount(len(headers))
+        self.table_frame.table.setRowCount(len(scores))
+        self.table_frame.table.setHorizontalHeaderLabels(headers)
+        self.table_frame.table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch)
+        for i, score in enumerate(scores):
+            self.table_frame.table.setItem(
+                i, 0, QTableWidgetItem(str(score[1])))
+            self.table_frame.table.setItem(
+                i, 1, QTableWidgetItem(str(score[2])))
+            self.table_frame.table.setItem(
+                i, 2, QTableWidgetItem(str(score[3])))
+
+    def sort_table(self):
+        self.table_frame.layout = QButtonGroup()
+        self.table_frame.layout.addButton(self.table_frame.rb_name)
+        self.table_frame.layout.addButton(self.table_frame.rb_score)
+        self.table_frame.layout.addButton(self.table_frame.rb_time)
+        if self.table_frame.rb_name.isChecked():
+            scores = self.cursor.execute(GET_SCORES_SORTED_BY_USER).fetchall()
+        elif self.table_frame.rb_score.isChecked():
+            scores = self.cursor.execute(GET_SCORES_SORTED_BY_SCORE).fetchall()
+        elif self.table_frame.rb_time.isChecked():
+            scores = self.cursor.execute(GET_SCORES_SORTED_BY_TIME).fetchall()
+        else:
+            scores = self.cursor.execute(GET_SCORES).fetchall()
+        for i, score in enumerate(scores):
+            self.table_frame.table.setItem(
+                i, 0, QTableWidgetItem(str(score[1])))
+            self.table_frame.table.setItem(
+                i, 1, QTableWidgetItem(str(score[2])))
+            self.table_frame.table.setItem(
+                i, 2, QTableWidgetItem(str(score[3])))
+
     def user_quit(self):
         self.user = None
         self.start_hello_frame()
@@ -299,14 +370,14 @@ class MainWindow(QMainWindow):
         elif event.key() == Qt.Key.Key_Enter:
             if self.sender() in (self.game_frame.check_btn, self.game_frame.user_answer_edit):
                 self.check_answer()
+            elif self.sender() == self.login_frame.login_edit:
+                self.login_frame.password_edit.setFocus()
+            elif self.sender() == self.signin_frame.signin_edit:
+                self.signin_frame.password_edit.setFocus()
             elif self.sender() == self.end_game_alert.ok_btn:
                 self.start_hello_frame()
-            elif self.sender() == self.login_frame.login_btn:
-                self.login_user()
-            elif self.sender() == self.signin_frame.signin_btn:
-                self.signin_user()
-            elif self.sender() == self.alert.login_btn:
-                self.login_user()
+            elif self.sender() == self.end_game_alert.open_table_btn:
+                self.show_table()
 
     def closeEvent(self, a0: QCloseEvent | None) -> None:
         self.db_connection.close()

@@ -9,8 +9,9 @@ CREATE_TABLE_USERS = """
 CREATE_TABLE_USERS_SCORES = """
                 CREATE TABLE IF NOT EXISTS Scores (
                 id INTEGER PRIMARY KEY,
-                user_id INTEGER NOT NULL UNIQUE,
-                score INTEGER NOT NULL
+                user_name INTEGER NOT NULL,
+                score INTEGER NOT NULL,
+                time FLOAT NOT NULL
                 )
                 """
 #                 FOREIGN KEY (user_id) REFERENCES Users(id)
@@ -25,4 +26,25 @@ SELECT * FROM Users WHERE username='{login}' AND password='{password}'
 
 GET_USER = """
 SELECT * FROM Users WHERE username='{login}'
+"""
+
+UPDATE_SCORES = """
+INSERT INTO Scores (user_name, score, time) VALUES ('{user_name}', '{score}', '{time}')
+"""
+
+GET_SCORES = """
+SELECT * FROM Scores
+"""
+
+GET_SCORES_SORTED_BY_USER = """
+SELECT * FROM Scores ORDER BY user_name DESC
+"""
+
+
+GET_SCORES_SORTED_BY_SCORE = """
+SELECT * FROM Scores ORDER BY score DESC
+"""
+
+GET_SCORES_SORTED_BY_TIME = """
+SELECT * FROM Scores ORDER BY time ASC
 """
